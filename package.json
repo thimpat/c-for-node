@@ -5,12 +5,15 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build:tcc": "cd tinycc/win32 && build-tcc.bat -c ..\\..\\tcc\\tcc.exe && cd ../.. && clonefile --force tinycc/win32 bin"
+    "build:tcc": "cd tinycc/win32 && build-tcc.bat -c ..\\..\\tcc\\tcc.exe && cd ../.. && clonefile --force tinycc/win32 bin",
+    "build:demo": "cd demo/hello && ..\\..\\bin\\tcc.exe -shared ..\\..\\bin\\examples\\dll.c && ..\\..\\bin\\tcc.exe ..\\..\\bin\\examples\\hello_dll.c dll.def && rimraf ../../dll.def && rimraf ../../dll.dll",
+    "run:demo": "npm run build:demo && .\\demo\\hello\\hello_dll.exe"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "clonefile": "^3.8.1"
+    "clonefile": "^3.8.1",
+    "rimraf": "^4.1.2"
   }
 }
