@@ -1,0 +1,15 @@
+{
+  "extensions": [
+    "ts"
+  ],
+  "require": [
+    "./test/config/register.mjs"
+  ],
+  "spec": [
+    "test/**/*.specs.ts"
+  ],
+  "node-option": [
+    "experimental-specifier-resolution=node",
+    "loader=ts-node/esm"
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "moduleResolution": "node",
+    "noImplicitAny": false,
+    "noEmit": true,
+    "allowJs": true,
+    "checkJs": false,
+    "strict": false,
+    "types": ["node"],
+    "typeRoots": ["./node_modules/@types"],
+    "declaration": true,
+    "emitDeclarationOnly": false
+  },
+  "include": ["esm/**/*", "test/**/*.ts"],
+  "exclude": ["node_modules/", "**/*.spec.ts"]
+}

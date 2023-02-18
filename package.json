@@ -1,19 +1,51 @@
 {
-  "name": "cconvert",
+  "name": "node-c",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "./esm/index.mjs",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "npm run build:all && npm run test:js && npm run test:ts",
     "build:tcc": "cd tinycc/win32 && build-tcc.bat -c ..\\..\\tcc\\tcc.exe && cd ../.. && clonefile --force tinycc/win32 bin",
     "build:demo": "cd demo/hello && ..\\..\\bin\\tcc.exe -shared ..\\..\\bin\\examples\\dll.c && ..\\..\\bin\\tcc.exe ..\\..\\bin\\examples\\hello_dll.c dll.def && rimraf ../../dll.def && rimraf ../../dll.dll",
-    "run:demo": "npm run build:demo && .\\demo\\hello\\hello_dll.exe"
+    "run:demo": "npm run build:demo && .\\demo\\hello\\hello_dll.exe",
+    "postinstall": "npm run build:tcc && npm run run:demo",
+    "genpack": "genpack",
+    "genpack:build:esm": "to-esm ./cjs/index.cjs --output ./esm --update-all --extension .mjs",
+    "genpack:build:dts": "tsc ./esm/index.mjs --declaration --allowJs --emitDeclarationOnly --outDir .",
+    "genpack:build:test": "to-esm test/*.specs.cjs --output ./test/ --target esm --skipEsmResolution --skipLinks",
+    "genpack:build:all": "npm run genpack:build:esm && npm run genpack:build:dts && npm run genpack:build:test",
+    "genpack:test:ts": "nyc mocha --config test/config/.mocharc.json",
+    "genpack:test:js": "nyc mocha",
+    "genpack:test": "npm run genpack:build:all && npm run genpack:test:js && npm run genpack:test:ts"
   },
   "keywords": [],
-  "author": "",
+  "author": "Patrice THIMOTHEE",
   "license": "ISC",
   "dependencies": {
-    "clonefile": "^3.8.1",
+    "@thimpat/libutils": "^1.16.0",
+    "analogger": "file:../analogger",
+    "clonefile": "^3.8.3",
+    "genpack": "^1.8.0",
+    "minimist": "^1.2.8",
     "rimraf": "^4.1.2"
+  },
+  "exports": {
+    "require": "./cjs/index.cjs",
+    "import": "./esm/index.mjs"
+  },
+  "typings": "./index.d.mts",
+  "type": "module",
+  "devDependencies": {
+    "@types/chai": "^4.3.4",
+    "@types/mocha": "^10.0.1",
+    "chai": "^4.3.7",
+    "mocha": "^10.2.0",
+    "nyc": "^15.1.0",
+    "to-esm": "^2.27.2",
+    "ts-node": "^10.9.1",
+    "typescript": "^4.9.5"
+  },
+  "bin": {
+    "node-c": "./cli.js"
   }
 }
