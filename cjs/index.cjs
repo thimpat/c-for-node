@@ -1,5 +1,6 @@
 const path = require("path");
 const {existsSync} = require("fs");
+const {is64Bit} = require("./utils.cjs");
 
 const {execFileSync} = require('child_process');
 const {joinPath} = require("@thimpat/libutils");
@@ -8,7 +9,15 @@ const {AnaLogger} = require("analogger");
 AnaLogger.startLogger();
 
 // Constants
-const TCC_PATH = joinPath(__dirname, "../bin/tcc.exe");
+const TCC_NAME_WIN32 = "tcc.exe";
+const TCC_NAME_WIN64 = "tcc.exe";
+const TCC_DIR = joinPath(__dirname, "../bin/");
+
+const ARCH_TYPE = {
+    WIN32: "WIN32",
+    WIN64: "WIN64",
+}
+
 const BIN_TYPE = {
     EXECUTABLE: "EXECUTABLE",               // Generate an exe file
     SHARED    : "SHARED"                    // Generate a dll
@@ -23,7 +32,33 @@ const RUN_TYPE = {
 
 const getTccPath = function ()
 {
-    const tccPath = TCC_PATH;
+    let tccPath;
+
+    // Windows
+    if ("win32" === process.platform)
+    {
+        if (is64Bit())
+        {
+            tccPath = joinPath(TCC_DIR, TCC_NAME_WIN64);
+        }
+        else
+        {
+            tccPath = joinPath(TCC_DIR, TCC_NAME_WIN32);
+        }
+    }
+   else if ("linux" === process.platform)
+    {
+    }
+    else if ("darwin" === process.platform)
+    {
+    }
+    else
+    {
+        console.error({lid: "NC5201"}, `Unsupported platform [${process.platform}]`)
+        return "";
+    }
+
+
     if (!existsSync(tccPath))
     {
         console.error({lid: "NC5321"}, `TCC not found at ${tccPath}`)
@@ -176,4 +211,5 @@ module.exports.run = run;
 
 module.exports.RUN_TYPE = RUN_TYPE;
 module.exports.BIN_TYPE = BIN_TYPE;
+module.exports.ARCH_TYPE = ARCH_TYPE;
 
