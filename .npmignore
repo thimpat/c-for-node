@@ -6,3 +6,9 @@
 /.vscode/
 /*.tgz
 /test//bin/
+/tinycc/
+/tcc/
+/bin/examples/
+/bin/doc/
+/config.h
+/demo/

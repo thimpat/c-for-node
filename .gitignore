@@ -2,3 +2,5 @@
 /.nyc_output/
 /*.tgz
 /bin/
+/demo/hello/
+/config.h
