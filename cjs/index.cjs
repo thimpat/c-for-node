@@ -133,6 +133,7 @@ const runTCC = function ({
  * @param sourcePath
  * @param binType
  * @param runType
+ * @param tccOptions
  * @param defs
  * @param output
  * @param preCommandMessage
@@ -143,7 +144,7 @@ const runTCC = function ({
 const runTccCommand = function (sourcePath, {
     binType = BIN_TYPE.EXECUTABLE,
     runType = RUN_TYPE.COMPILE,
-    execArgs = [],
+    tccOptions = [],
     defs = [],
     output = "",
     preCommandMessage = "",
@@ -177,6 +178,11 @@ const runTccCommand = function (sourcePath, {
         {
             optionsList.push("-o");
             optionsList.push(output);
+        }
+
+        if (tccOptions && tccOptions.length)
+        {
+            optionsList.push(...tccOptions);
         }
 
         const {success, tccExecutablePath, status, message} = runTCC({
@@ -213,7 +219,7 @@ const compileSource = function (filePath, {
     output = "",
     outputDir = "",
     defs = [],
-    execArgs = [],
+    tccOptions = [],
     force = false
 } = {})
 {
@@ -260,7 +266,8 @@ const compileSource = function (filePath, {
         defs,
         preCommandMessage,
         preCommandSymbol: "coffee",
-        preCommandColor : "#656565"
+        preCommandColor : "#656565",
+        tccOptions
     });
 
     if (!success)
