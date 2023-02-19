@@ -170,60 +170,64 @@ const runTccCommand = function (sourcePath, {
 
 /**
  * Compile source code
- * @param filepath
+ * @param filePath
  * @param binType
  * @param output
+ * @param outputDir
  * @param {string[]} defs
  * @param execArgs
  * @param force
  * @returns {string|null}
  */
-const compileSource = function (filepath, {
+const compileSource = function (filePath, {
     binType = BIN_TYPE.EXECUTABLE,
     output = "",
+    outputDir = "",
     defs = [],
     execArgs = [],
     force = false
 } = {})
 {
-    if (!existsSync(filepath))
+    let {success: successInfo, execPath: compiledPath, message, status: statusInfo} = getInfo(filePath, {
+        output,
+        outputDir,
+        binType
+    });
+
+    if (!successInfo)
     {
-        console.error({lid: "NC5631"}, `File [${filepath}] not found`);
-        process.exitCode = PROCESS_ERROR_CODE.SOURCE_NOT_FOUND;
+        console.error({lid: "NC5639"}, message);
+        process.exitCode = statusInfo;
+        return null;
+    }
+
+    if (!compiledPath)
+    {
+        console.error({lid: "NC5641"}, `File [${compiledPath}] not found`);
+        process.exitCode = PROCESS_ERROR_CODE.COMPILED_BINARY_UNDEFINED;
         return null;
     }
 
     let preCommandMessage = "Generating executable: ";
-    let execPath = output;
-    if (!execPath)
-    {
-        const {dir, name} = path.parse(filepath);
-        if (binType === BIN_TYPE.EXECUTABLE)
-        {
-            execPath = joinPath(dir, name + ".exe");
-        }
-        else if (binType === BIN_TYPE.SHARED)
-        {
-            execPath = joinPath(dir, name + ".dll");
-            preCommandMessage = "Generating shared library: "
-        }
-    }
-
-
-    if (!force && execPath && existsSync(execPath))
+    if (!force && compiledPath && existsSync(compiledPath))
     {
         console.log({
             lid   : "NC5430",
             symbol: "hand",
             color : "#b0724f"
-        }, `Skipping compilation: Binary detected at [${execPath}]`);
-        return execPath;
+        }, `Skipping compilation: Binary detected at [${compiledPath}]`);
+        return compiledPath;
     }
 
-    const {success, status} = runTccCommand(filepath, {
+    if (binType === BIN_TYPE.SHARED)
+    {
+        preCommandMessage = "Generating shared library: "
+    }
+
+    const {success, status} = runTccCommand(filePath, {
         runType         : RUN_TYPE.COMPILE,
         binType,
-        output          : execPath,
+        output          : compiledPath,
         defs,
         preCommandMessage,
         preCommandSymbol: "coffee",
@@ -236,9 +240,9 @@ const compileSource = function (filepath, {
         return null;
     }
 
-    if (!existsSync(execPath))
+    if (!existsSync(compiledPath))
     {
-        console.error({lid: "NC5629"}, `Failed to compile [${filepath}] to [${execPath}]`);
+        console.error({lid: "NC5629"}, `Failed to compile [${filePath}] to [${compiledPath}]`);
         process.exitCode = PROCESS_ERROR_CODE.COMPILED_BINARY_NOT_FOUND;
         return null;
     }
@@ -247,14 +251,14 @@ const compileSource = function (filepath, {
         lid   : "NC5432",
         symbol: "black_medium_small_square",
         color : "#336769"
-    }, `Binary generated at [${execPath}]`);
+    }, `Binary generated at [${compiledPath}]`);
 
-    return execPath
+    return compiledPath;
 }
 
-const compileLibrary = function (filePath)
+const compileLibrary = function (filePath, {outputDir = ""} = {})
 {
-    return compileSource(filePath, {binType: BIN_TYPE.SHARED})
+    return compileSource(filePath, {binType: BIN_TYPE.SHARED, outputDir})
 }
 
 const registerCall = function ()
@@ -265,31 +269,39 @@ const registerCall = function ()
 /**
  * Returns info source related:
  * execPath: Binary output path
- * @param filepath
+ * @param filePath
  * @param output
+ * @param outputDir
  * @returns {{success: boolean}|{execPath: string, filepath, success: boolean}}
  */
-const getInfo = function (filepath, {output = "", outputDir = ""} = {})
+const getInfo = function (filePath, {output = "", outputDir = "", binType = BIN_TYPE.EXECUTABLE,} = {})
 {
-    if (!filepath)
+    if (!filePath)
     {
         return {success: false, message: "Invalid path", status: PROCESS_ERROR_CODE.SOURCE_UNDEFINED};
     }
 
-    if (!existsSync(filepath))
+    if (!existsSync(filePath))
     {
-        return {success: false, message: `Could not find [${filepath}]`, status: PROCESS_ERROR_CODE.SOURCE_NOT_FOUND};
+        return {success: false, message: `Could not find [${filePath}]`, status: PROCESS_ERROR_CODE.SOURCE_NOT_FOUND};
     }
 
     let execPath = output;
     if (!execPath)
     {
-        const {dir, name} = path.parse(filepath);
+        const {dir, name} = path.parse(filePath);
         outputDir = outputDir || dir;
-        execPath = joinPath(outputDir, name + ".exe");
+        if (binType === BIN_TYPE.EXECUTABLE)
+        {
+            execPath = joinPath(outputDir, name + ".exe");
+        }
+        else if (binType === BIN_TYPE.SHARED)
+        {
+            execPath = joinPath(outputDir, name + ".dll");
+        }
     }
 
-    return {filepath, execPath, success: true}
+    return {filepath: filePath, execPath, success: true}
 }
 
 const runBinary = function (filePath, {
@@ -313,26 +325,12 @@ const runBinary = function (filePath, {
  * @param execArgs
  * @param defs
  * @param output
+ * @param outputDir
  * @returns {*}
  */
 const runFile = function (filePath, {execArgs = [], defs = [], output = "", outputDir = ""} = {})
 {
-    let {success, execPath: compiledPath, message, status} = getInfo(filePath, {output, outputDir});
-    if (!success)
-    {
-        console.error({lid: "NC5639"}, message);
-        process.exitCode = status;
-        return null;
-    }
-
-    if (!compiledPath)
-    {
-        console.error({lid: "NC5641"}, `File [${compiledPath}] not found`);
-        process.exitCode = PROCESS_ERROR_CODE.COMPILED_BINARY_UNDEFINED;
-        return null;
-    }
-
-    compiledPath = compileSource(filePath, {binType: BIN_TYPE.EXECUTABLE, output: compiledPath, defs, execArgs});
+    let compiledPath = compileSource(filePath, {binType: BIN_TYPE.EXECUTABLE, output, outputDir, defs, execArgs});
     if (!existsSync(compiledPath))
     {
         // Compile source
@@ -350,7 +348,7 @@ const runFile = function (filePath, {execArgs = [], defs = [], output = "", outp
  * @param filePath
  * @returns {*}
  */
-const runLive = function (filePath)
+const runLive = function (filePath, {execArgs = []} = {})
 {
     let {success} = getInfo(filePath);
     if (!success)
