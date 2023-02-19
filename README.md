@@ -65,8 +65,8 @@ if (!success)
 #### Example 2 - Compile a C source to a shared library (dll)
 
 ```javascript
-const {compileSource} = require("c-node");
-const {success, status} = compileSource("examples/dll.c", {binType: BIN_TYPE.SHARED})
+const {compileLibrary} = require("c-node");
+const {success, status} = compileLibrary("examples/dll.c")
 ```
 
 <br/>
@@ -77,7 +77,7 @@ const {success, status} = compileSource("examples/dll.c", {binType: BIN_TYPE.SHA
 
 <br/>
 
-#### Example 3 - Run source immediately after compiling
+#### Example 3 - Compile if target nonexistent then run source
 
 ###### example.js ↴
 ```javascript
