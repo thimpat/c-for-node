@@ -16,7 +16,7 @@ npm install c-node
 
 CJS
 ```javascript
-const {BIN_TYPE, RUN_TYPE, run, compileSource} = require("c-node");
+const cNode = require("c-node");
 ```
 
 <br/>
@@ -24,7 +24,7 @@ const {BIN_TYPE, RUN_TYPE, run, compileSource} = require("c-node");
 ESM
 
 ```javascript
-import {BIN_TYPE, RUN_TYPE, run, compileSource} from "c-node";
+import cNode from "c-node";
 ```
 
 <br/>
