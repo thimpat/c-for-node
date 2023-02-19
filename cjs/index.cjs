@@ -269,7 +269,7 @@ const registerCall = function ()
  * @param output
  * @returns {{success: boolean}|{execPath: string, filepath, success: boolean}}
  */
-const getInfo = function (filepath, {output = ""} = {})
+const getInfo = function (filepath, {output = "", outputDir = ""} = {})
 {
     if (!filepath)
     {
@@ -285,7 +285,8 @@ const getInfo = function (filepath, {output = ""} = {})
     if (!execPath)
     {
         const {dir, name} = path.parse(filepath);
-        execPath = joinPath(dir, name + ".exe");
+        outputDir = outputDir || dir;
+        execPath = joinPath(outputDir, name + ".exe");
     }
 
     return {filepath, execPath, success: true}
@@ -314,9 +315,9 @@ const runBinary = function (filePath, {
  * @param output
  * @returns {*}
  */
-const runFile = function (filePath, {execArgs = [], defs = [], output = ""} = {})
+const runFile = function (filePath, {execArgs = [], defs = [], output = "", outputDir = ""} = {})
 {
-    let {success, execPath: compiledPath, message, status} = getInfo(filePath, {output});
+    let {success, execPath: compiledPath, message, status} = getInfo(filePath, {output, outputDir});
     if (!success)
     {
         console.error({lid: "NC5639"}, message);
