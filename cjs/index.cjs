@@ -252,6 +252,11 @@ const compileSource = function (filepath, {
     return execPath
 }
 
+const compileLibrary = function (filePath)
+{
+    return compileSource(filePath, {binType: BIN_TYPE.SHARED})
+}
+
 const registerCall = function ()
 {
 
@@ -304,6 +309,9 @@ const runBinary = function (filePath, {
 /**
  * Compile then run the generated executable
  * @param filePath
+ * @param execArgs
+ * @param defs
+ * @param output
  * @returns {*}
  */
 const runFile = function (filePath, {execArgs = [], defs = [], output = ""} = {})
@@ -368,6 +376,7 @@ module.exports = {
 }
 
 module.exports.compileSource = compileSource;
+module.exports.compileLibrary = compileLibrary;
 module.exports.registerCall = registerCall;
 
 module.exports.runFile = runFile;
