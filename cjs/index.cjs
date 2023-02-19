@@ -42,10 +42,7 @@ const PROCESS_ERROR_CODE = {
  * @returns {{success: boolean}|{result: Buffer, stdout: string, success: boolean, stderr: string, message: string,
  *     status: (number|number|string|*)}}
  */
-const runProcess = function (execPath, {
-    preCommandMessage = "Executing command: ",
-    preCommandSymbol = "star",
-    preCommandColor = "rgb(110, 110, 110)",
+const runBinary = function (execPath, {
     execArgs = []
 } = {})
 {
@@ -62,12 +59,6 @@ const runProcess = function (execPath, {
     }
 
     const commandLine = `${execPath} ${execArgs.join(" ")}`;
-    console.log({
-        lid   : "NC5618",
-        color : preCommandColor,
-        symbol: preCommandSymbol
-    }, `${preCommandMessage}${commandLine}`);
-
     let result, stderr, stdout, status, message, success = false;
 
     try
@@ -93,7 +84,52 @@ const runProcess = function (execPath, {
 }
 
 /**
- *
+ * Run TCC compiler
+ * @param execArgs
+ * @param preCommandMessage
+ * @param preCommandSymbol
+ * @param preCommandColor
+ * @param showCNodeMessages
+ * @returns {{success: boolean, tccExecutablePath: (*|string), status: (number|string|*)}|{success: boolean, status:
+ *     number}}
+ */
+const runTCC = function ({
+                             execArgs = [],
+                             preCommandMessage = "Executing TCC: ",
+                             preCommandSymbol = "coffee",
+                             preCommandColor = "rgb(110, 110, 110)",
+                             showCNodeMessages = true
+                         } = {})
+{
+    const tccExecutablePath = getTccPath();
+    if (!tccExecutablePath)
+    {
+        return {success: false, status: 2};
+    }
+
+    if (showCNodeMessages)
+    {
+        const commandLine = `${tccExecutablePath} ${execArgs.join(" ")}`;
+        console.log({
+            lid   : "NC5618",
+            color : preCommandColor,
+            symbol: "coffee"
+        }, `${preCommandMessage}${commandLine}`);
+    }
+
+    const {success, message, status} = runBinary(tccExecutablePath, {
+        execArgs,
+        preCommandMessage,
+        preCommandSymbol,
+        preCommandColor
+    });
+
+    return {success, tccExecutablePath, status, message};
+
+}
+
+/**
+ * Create command line to run with the TCC compiler
  * @param sourcePath
  * @param binType
  * @param runType
@@ -107,6 +143,7 @@ const runProcess = function (execPath, {
 const runTccCommand = function (sourcePath, {
     binType = BIN_TYPE.EXECUTABLE,
     runType = RUN_TYPE.COMPILE,
+    execArgs = [],
     defs = [],
     output = "",
     preCommandMessage = "",
@@ -116,12 +153,6 @@ const runTccCommand = function (sourcePath, {
 {
     try
     {
-        const tccExecutablePath = getTccPath();
-        if (!tccExecutablePath)
-        {
-            return {success: false, status: 2};
-        }
-
         const optionsList = [];
 
         if (binType === BIN_TYPE.SHARED)
@@ -148,17 +179,15 @@ const runTccCommand = function (sourcePath, {
             optionsList.push(output);
         }
 
-        const {success, message, status} = runBinary(tccExecutablePath, {
+        const {success, tccExecutablePath, status, message} = runTCC({
             execArgs: optionsList,
             preCommandMessage,
-            preCommandSymbol,
-            preCommandColor
+            preCommandColor,
+            preCommandSymbol
         });
-
         message && console.log({lid: "NC5622"}, message);
 
-        return {success, tccExecutablePath, status};
-
+        return {success, tccExecutablePath, status, message};
     }
     catch (e)
     {
@@ -208,7 +237,7 @@ const compileSource = function (filePath, {
         return null;
     }
 
-    let preCommandMessage = "Generating executable: ";
+    let preCommandMessage = "Executing TCC: ";
     if (!force && compiledPath && existsSync(compiledPath))
     {
         console.log({
@@ -304,21 +333,6 @@ const getInfo = function (filePath, {output = "", outputDir = "", binType = BIN_
     return {filepath: filePath, execPath, success: true}
 }
 
-const runBinary = function (filePath, {
-    execArgs = [],
-    preCommandMessage = "Running: ",
-    preCommandSymbol = "sparkles",
-    preCommandColor = "#daa116"
-} = {})
-{
-    return runProcess(filePath, {
-        execArgs,
-        preCommandMessage,
-        preCommandSymbol,
-        preCommandColor,
-    });
-}
-
 /**
  * Compile then run the generated executable
  * @param filePath
@@ -340,7 +354,20 @@ const runFile = function (filePath, {execArgs = [], defs = [], output = "", outp
         }
     }
 
-    return runBinary(compiledPath, {execArgs});
+    const preCommandMessage = "Executing command: ";
+    const commandLine = `${compiledPath} ${execArgs.join(" ")}`;
+    console.log({
+        lid   : "NC6548",
+        color : "#656986",
+        symbol: "sparkles"
+    }, `${preCommandMessage}${commandLine}`);
+
+    const {success, result, stderr, stdout, status, message} = runBinary(compiledPath, {
+        execArgs,
+        preCommandMessage,
+    });
+
+    return {success, result, stderr, stdout, status, message, commandLine};
 }
 
 /**
@@ -358,8 +385,18 @@ const runLive = function (filePath, {execArgs = []} = {})
         return null;
     }
 
+    let preCommandMessage = "Executing (JIT): ";
+    let preCommandSymbol = "sparkles";
+    let preCommandColor = "#b79541";
+
     // Execute source without compiling
-    return runTccCommand(filePath, {runType: RUN_TYPE.JIT});
+    return runTccCommand(filePath, {
+        execArgs,
+        runType: RUN_TYPE.JIT,
+        preCommandMessage,
+        preCommandSymbol,
+        preCommandColor
+    });
 }
 
 module.exports = {
