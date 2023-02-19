@@ -35,6 +35,9 @@ const PROCESS_ERROR_CODE = {
 /**
  * Run a binary
  * @param execPath
+ * @param preCommandMessage
+ * @param preCommandSymbol
+ * @param preCommandColor
  * @param execArgs
  * @returns {{success: boolean}|{result: Buffer, stdout: string, success: boolean, stderr: string, message: string,
  *     status: (number|number|string|*)}}
@@ -69,7 +72,6 @@ const runProcess = function (execPath, {
 
     try
     {
-        // console.log({lid: "NC5824", symbol: "sparkles"}, `Executing [${execPath}]...`);
         result = execFileSync(execPath, execArgs, {stdio: "pipe"});
         success = true;
         message = result?.toString();
@@ -97,6 +99,9 @@ const runProcess = function (execPath, {
  * @param runType
  * @param defs
  * @param output
+ * @param preCommandMessage
+ * @param preCommandSymbol
+ * @param preCommandColor
  * @returns {{success: boolean}}
  */
 const runTccCommand = function (sourcePath, {
@@ -121,6 +126,7 @@ const runTccCommand = function (sourcePath, {
 
         if (binType === BIN_TYPE.SHARED)
         {
+            preCommandMessage = `Generating shared library: `;
             optionsList.push("-shared");
         }
 
@@ -187,6 +193,7 @@ const compileSource = function (filepath, {
         return null;
     }
 
+    let preCommandMessage = "Generating executable: ";
     let execPath = output;
     if (!execPath)
     {
@@ -198,23 +205,29 @@ const compileSource = function (filepath, {
         else if (binType === BIN_TYPE.SHARED)
         {
             execPath = joinPath(dir, name + ".dll");
+            preCommandMessage = "Generating shared library: "
         }
     }
 
+
     if (!force && execPath && existsSync(execPath))
     {
-        console.log({lid: "NC5430", symbol: "hand", color: "#b0724f"}, `Skipping compilation: Binary detected at [${execPath}]`);
+        console.log({
+            lid   : "NC5430",
+            symbol: "hand",
+            color : "#b0724f"
+        }, `Skipping compilation: Binary detected at [${execPath}]`);
         return execPath;
     }
 
     const {success, status} = runTccCommand(filepath, {
-        runType          : RUN_TYPE.COMPILE,
+        runType         : RUN_TYPE.COMPILE,
         binType,
-        output           : execPath,
+        output          : execPath,
         defs,
-        preCommandMessage: "Command compilation: ",
-        preCommandSymbol : "coffee",
-        preCommandColor  : "#656565"
+        preCommandMessage,
+        preCommandSymbol: "coffee",
+        preCommandColor : "#656565"
     });
 
     if (!success)
@@ -234,7 +247,7 @@ const compileSource = function (filepath, {
         lid   : "NC5432",
         symbol: "black_medium_small_square",
         color : "#336769"
-    }, `Source generated at [${execPath}]`);
+    }, `Binary generated at [${execPath}]`);
 
     return execPath
 }
@@ -273,13 +286,18 @@ const getInfo = function (filepath, {output = ""} = {})
     return {filepath, execPath, success: true}
 }
 
-const runBinary = function (filePath, {execArgs = []} = {})
+const runBinary = function (filePath, {
+    execArgs = [],
+    preCommandMessage = "Running: ",
+    preCommandSymbol = "sparkles",
+    preCommandColor = "#daa116"
+} = {})
 {
     return runProcess(filePath, {
         execArgs,
-        preCommandMessage: "Executing: ",
-        preCommandSymbol : "sparkles",
-        preCommandColor  : "rgb(60,110,50)",
+        preCommandMessage,
+        preCommandSymbol,
+        preCommandColor,
     });
 }
 
@@ -335,6 +353,18 @@ const runLive = function (filePath)
 
     // Execute source without compiling
     return runTccCommand(filePath, {runType: RUN_TYPE.JIT});
+}
+
+module.exports = {
+    compileSource,
+    registerCall,
+    runFile,
+    runLive,
+    runBinary,
+    RUN_TYPE,
+    BIN_TYPE,
+    ARCH_TYPE,
+    PROCESS_ERROR_CODE
 }
 
 module.exports.compileSource = compileSource;
