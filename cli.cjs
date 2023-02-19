@@ -4,7 +4,7 @@ const {runTCC} = require("./cjs/index.cjs");
 const init = async function (argv)
 {
     const args = argv.slice(2);
-    runTCC({execArgs: args, showCNodeMessages: false})
+    runTCC({execArgs: args, showCNodeMessages: true})
 };
 
 (async function ()
