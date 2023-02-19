@@ -355,7 +355,7 @@ const runLive = function (filePath)
     let {success} = getInfo(filePath);
     if (!success)
     {
-        console.error({lid: "NC5651"}, `Could not find [${filepath}]`);
+        console.error({lid: "NC5651"}, `Could not find [${filePath}]`);
         process.exitCode = PROCESS_ERROR_CODE.SOURCE_NOT_FOUND;
         return null;
     }
