@@ -415,6 +415,7 @@ module.exports.compileSource = compileSource;
 module.exports.compileLibrary = compileLibrary;
 module.exports.registerCall = registerCall;
 
+module.exports.runTCC = runTCC;
 module.exports.runFile = runFile;
 module.exports.runLive = runLive;
 module.exports.runBinary = runBinary;
