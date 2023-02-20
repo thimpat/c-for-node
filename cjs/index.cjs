@@ -406,6 +406,8 @@ const runFile = function (filePath, {execArgs = [], defs = [], output = "", outp
  * Run the source in memory
  * @param filePath
  * @param execArgs
+ * @param defs
+ * @param outputDir
  * @returns {*}
  */
 const runLive = function (filePath, {execArgs = [], defs = [], outputDir = ""} = {})
@@ -451,6 +453,7 @@ const runString = function (str, {execArgs = [], defs = [], outputDir = ""} = {}
 
 /**
  * Invoke a function from a shared library file (.dll)
+ * @param funcName
  * @param dll
  * @param outputDir
  * @returns {*|null}
