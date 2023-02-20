@@ -8,7 +8,7 @@
     "build:tcc": "cd tinycc/win32 && build-tcc.bat -c ..\\..\\tcc\\tcc.exe && cd ../.. && clonefile --force tinycc/win32 bin",
     "build:demo": "cd demo/hello && ..\\..\\bin\\tcc.exe -shared ..\\..\\bin\\examples\\dll.c && ..\\..\\bin\\tcc.exe ..\\..\\bin\\examples\\hello_dll.c dll.def && rimraf ../../dll.def && rimraf ../../dll.dll",
     "run:demo": "npm run build:demo && .\\demo\\hello\\hello_dll.exe",
-    "postinstall": "npm run build:tcc && npm run run:demo",
+    "#postinstall": "npm run build:tcc && npm run run:demo",
     "genpack": "genpack",
     "genpack:build:esm": "to-esm ./cjs/index.cjs --output ./esm --update-all --extension .mjs",
     "genpack:build:dts": "tsc ./esm/index.mjs --declaration --allowJs --emitDeclarationOnly --outDir .",
