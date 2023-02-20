@@ -445,8 +445,8 @@ const runString = function (str, {execArgs = [], defs = [], outputDir = ""} = {}
     // const result = runLive(filePath, {defs, outputDir});
     const {success, result, stderr, stdout, status, message, commandLine, compiledPath} = runFile(filePath, {defs, outputDir});
 
-    unlinkSync(filePath);
-    unlinkSync(compiledPath);
+    existsSync(filePath) && unlinkSync(filePath);
+    existsSync(compiledPath) &&unlinkSync(compiledPath);
 
     return {success, result, stderr, stdout, status, message, commandLine, compiledPath};
 }
