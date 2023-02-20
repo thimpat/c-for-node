@@ -1,10 +1,14 @@
 const path = require("path");
-const {existsSync} = require("fs");
-const {getTccPath} = require("./utils.cjs");
+const {existsSync, writeFileSync, unlinkSync} = require("fs");
+const crypto = require("crypto");
 
 const {execFileSync} = require('child_process');
-const {joinPath} = require("@thimpat/libutils");
+const {joinPath, resolvePath} = require("@thimpat/libutils");
 const {AnaLogger} = require("analogger");
+
+const {getTccPath} = require("./utils.cjs");
+const {loadTemplate} = require("./tpl.cjs");
+
 
 AnaLogger.startLogger();
 
@@ -32,6 +36,10 @@ const PROCESS_ERROR_CODE = {
     COMPILED_BINARY_NOT_FOUND: 15
 }
 
+const CONSTANTS = {
+  prefixTemp: `cnode-temp-`
+};
+
 /**
  * Run a binary
  * @param execPath
@@ -43,7 +51,8 @@ const PROCESS_ERROR_CODE = {
  *     status: (number|number|string|*)}}
  */
 const runBinary = function (execPath, {
-    execArgs = []
+    execArgs = [],
+    cwd = ""
 } = {})
 {
     if (!execPath)
@@ -63,7 +72,7 @@ const runBinary = function (execPath, {
 
     try
     {
-        result = execFileSync(execPath, execArgs, {stdio: "pipe"});
+        result = execFileSync(execPath, execArgs, {stdio: "pipe", cwd: cwd || process.cwd()});
         success = true;
         message = result?.toString();
     }
@@ -95,6 +104,7 @@ const runBinary = function (execPath, {
  */
 const runTCC = function ({
                              execArgs = [],
+                             cwd = "",
                              preCommandMessage = "Executing TCC: ",
                              preCommandSymbol = "coffee",
                              preCommandColor = "rgb(110, 110, 110)",
@@ -118,6 +128,7 @@ const runTCC = function ({
     }
 
     const {success, message, status} = runBinary(tccExecutablePath, {
+        cwd,
         execArgs,
         preCommandMessage,
         preCommandSymbol,
@@ -147,6 +158,7 @@ const runTccCommand = function (sourcePath, {
     tccOptions = [],
     defs = [],
     output = "",
+    cwd = process.cwd(),
     preCommandMessage = "",
     preCommandSymbol = "coffee",
     preCommandColor = "#656565"
@@ -186,6 +198,7 @@ const runTccCommand = function (sourcePath, {
         }
 
         const {success, tccExecutablePath, status, message} = runTCC({
+            cwd,
             execArgs: optionsList,
             preCommandMessage,
             preCommandColor,
@@ -212,7 +225,7 @@ const runTccCommand = function (sourcePath, {
  * @param {string[]} defs
  * @param execArgs
  * @param force
- * @returns {string|null}
+ * @returns {{fileName, success: boolean, compiledPath?: string}}
  */
 const compileSource = function (filePath, {
     binType = BIN_TYPE.EXECUTABLE,
@@ -223,7 +236,7 @@ const compileSource = function (filePath, {
     force = false
 } = {})
 {
-    let {success: successInfo, execPath: compiledPath, message, status: statusInfo} = getInfo(filePath, {
+    let {success: successInfo, execPath: compiledPath, message, status: statusInfo, fileName} = getInfo(filePath, {
         output,
         outputDir,
         binType
@@ -233,14 +246,14 @@ const compileSource = function (filePath, {
     {
         console.error({lid: "NC5639"}, message);
         process.exitCode = statusInfo;
-        return null;
+        return {success: false};
     }
 
     if (!compiledPath)
     {
         console.error({lid: "NC5641"}, `File [${compiledPath}] not found`);
         process.exitCode = PROCESS_ERROR_CODE.COMPILED_BINARY_UNDEFINED;
-        return null;
+        return {success: false};
     }
 
     let preCommandMessage = "Executing TCC: ";
@@ -251,7 +264,7 @@ const compileSource = function (filePath, {
             symbol: "hand",
             color : "#b0724f"
         }, `Skipping compilation: Binary detected at [${compiledPath}]`);
-        return compiledPath;
+        return {success: true, compiledPath};
     }
 
     if (binType === BIN_TYPE.SHARED)
@@ -273,14 +286,14 @@ const compileSource = function (filePath, {
     if (!success)
     {
         process.exitCode = status;
-        return null;
+        return {success: false};
     }
 
     if (!existsSync(compiledPath))
     {
         console.error({lid: "NC5629"}, `Failed to compile [${filePath}] to [${compiledPath}]`);
         process.exitCode = PROCESS_ERROR_CODE.COMPILED_BINARY_NOT_FOUND;
-        return null;
+        return {success: false};
     }
 
     console.log({
@@ -289,9 +302,15 @@ const compileSource = function (filePath, {
         color : "#336769"
     }, `Binary generated at [${compiledPath}]`);
 
-    return compiledPath;
+    return {success: true, compiledPath, fileName};
 }
 
+/**
+ * Compile a C library
+ * @param filePath
+ * @param outputDir
+ * @returns {{fileName, success: boolean, compiledPath?: string}}
+ */
 const compileLibrary = function (filePath, {outputDir = ""} = {})
 {
     return compileSource(filePath, {binType: BIN_TYPE.SHARED, outputDir})
@@ -323,21 +342,24 @@ const getInfo = function (filePath, {output = "", outputDir = "", binType = BIN_
     }
 
     let execPath = output;
+    let fileName = "";
     if (!execPath)
     {
         const {dir, name} = path.parse(filePath);
         outputDir = outputDir || dir;
         if (binType === BIN_TYPE.EXECUTABLE)
         {
-            execPath = joinPath(outputDir, name + ".exe");
+            fileName = name + ".exe";
+            execPath = joinPath(outputDir, fileName);
         }
         else if (binType === BIN_TYPE.SHARED)
         {
-            execPath = joinPath(outputDir, name + ".dll");
+            fileName = name + ".dll";
+            execPath = joinPath(outputDir, fileName);
         }
     }
 
-    return {filepath: filePath, execPath, success: true}
+    return {filePath, fileName, execPath, success: true}
 }
 
 /**
@@ -351,7 +373,12 @@ const getInfo = function (filePath, {output = "", outputDir = "", binType = BIN_
  */
 const runFile = function (filePath, {execArgs = [], defs = [], output = "", outputDir = ""} = {})
 {
-    let compiledPath = compileSource(filePath, {binType: BIN_TYPE.EXECUTABLE, output, outputDir, defs, execArgs});
+    let {success: successCompile, compiledPath} = compileSource(filePath, {binType: BIN_TYPE.EXECUTABLE, output, outputDir, defs, execArgs});
+    if (!successCompile)
+    {
+        return {success: false};
+    }
+
     if (!existsSync(compiledPath))
     {
         // Compile source
@@ -374,15 +401,16 @@ const runFile = function (filePath, {execArgs = [], defs = [], output = "", outp
         preCommandMessage,
     });
 
-    return {success, result, stderr, stdout, status, message, commandLine};
+    return {success, result, stderr, stdout, status, message, commandLine, compiledPath};
 }
 
 /**
  * Run the source in memory
  * @param filePath
+ * @param execArgs
  * @returns {*}
  */
-const runLive = function (filePath, {execArgs = []} = {})
+const runLive = function (filePath, {execArgs = [], defs = [], outputDir = ""} = {})
 {
     let {success} = getInfo(filePath);
     if (!success)
@@ -399,6 +427,8 @@ const runLive = function (filePath, {execArgs = []} = {})
     // Execute source without compiling
     return runTccCommand(filePath, {
         execArgs,
+        defs,
+        cwd    : outputDir,
         runType: RUN_TYPE.JIT,
         preCommandMessage,
         preCommandSymbol,
@@ -406,12 +436,56 @@ const runLive = function (filePath, {execArgs = []} = {})
     });
 }
 
+const runString = function (str, {execArgs = [], defs = [], outputDir = ""} = {})
+{
+    const fileName = CONSTANTS.prefixTemp + crypto.randomInt(0, 9999999) + ".c";
+    const filePath = joinPath(outputDir, fileName);
+    writeFileSync(filePath, str, {encoding: "utf-8"});
+
+    // const result = runLive(filePath, {defs, outputDir});
+    const {success, result, stderr, stdout, status, message, commandLine, compiledPath} = runFile(filePath, {defs, outputDir});
+
+    unlinkSync(filePath);
+    unlinkSync(compiledPath);
+
+    return {success, result, stderr, stdout, status, message, commandLine, compiledPath};
+}
+
+/**
+ * Invoke a function from a shared library file (.dll)
+ * @param dll
+ * @param outputDir
+ * @returns {*|null}
+ */
+const invokeCFunction = function (dll, {outputDir = "./"} = {})
+{
+    // Compile the DLL
+    const {success: successCompile, compiledPath: generatedSharedLibraryPath, fileName} = compileLibrary(dll, {outputDir});
+    if (!successCompile)
+    {
+        return null;
+    }
+
+    if (!generatedSharedLibraryPath)
+    {
+        return null;
+    }
+
+    const str = loadTemplate("winmain.c", {shebang: "#!/usr/local/bin/tcc -run"});
+    const {success, result, stderr, stdout, status, message, commandLine, compiledPath} = runString(str, {outputDir, defs: [generatedSharedLibraryPath]});
+
+    message && console.log({lid: "NC6542"}, message);
+    return {success, result, stderr, stdout, status, message, commandLine, compiledPath};
+}
+
+
 module.exports = {
     compileSource,
     registerCall,
     runFile,
     runLive,
     runBinary,
+    invokeCFunction,
     RUN_TYPE,
     BIN_TYPE,
     ARCH_TYPE,
@@ -425,7 +499,10 @@ module.exports.registerCall = registerCall;
 module.exports.runTCC = runTCC;
 module.exports.runFile = runFile;
 module.exports.runLive = runLive;
+module.exports.runString = runString;
 module.exports.runBinary = runBinary;
+
+module.exports.invokeCFunction = invokeCFunction;
 
 module.exports.RUN_TYPE = RUN_TYPE;
 module.exports.BIN_TYPE = BIN_TYPE;
