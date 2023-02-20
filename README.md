@@ -1,6 +1,6 @@
 
 C-node is a module that allows invoking C code from your nodeJs application.
-It does not use node-gyp but the TCC compiler.
+The module uses the TCC compiler. It does not use node-gyp. It does not use Python.
 
 # Installation
 
@@ -37,6 +37,51 @@ import cNode from "@thimpat/c-node";
 // C-node uses the TCC compiler under the hood.
 $> c-node [options] 
 ```
+
+---
+
+# Quick start 
+
+<br/>
+
+#### Invoking a function from a .dll in Node
+
+
+###### dll.c ↴
+```c
+#include <windows.h>
+
+// Export function "hello_func" to .dll
+__declspec(dllexport) char* hello_func (char* name)
+{
+    char str[100];
+    sprintf(str, "From DLL: %d - %s", 10000, name);
+    MessageBox (0, "Hi world!", str, MB_ICONINFORMATION);
+    return "All okay";
+}
+```
+
+```javascript
+const {loadFunctions} = require("@thimpat/c-node");
+
+// Import c function "hello_func()" from dll
+const {hello_func} = loadFunctions("dll.c", {
+    hello_func: {
+        // hello_func prototype from dll.c without names (only types)
+        prototype: "char* hello_func (char*)",
+    }
+}, {
+    // Optional: Directory from which the shared function will be executed
+    outputDir: "demo/"
+});
+
+// Invoke dll function
+const result = hello_func("My name is awesome");
+
+console.log(result);           // All okay
+```
+
+<br/>
 
 ---
 
