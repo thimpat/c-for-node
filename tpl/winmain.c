@@ -1,12 +1,11 @@
 ##shebang##
-//+---------------------------------------------------------------------------
-//
-//  HELLO_DLL.C - Windows DLL example - main application part
-//
+// ---------------------------------------------------------------------------
+// Function caller
+// ---------------------------------------------------------------------------
 
 #include <windows.h>
 
-char* hello_func (void);
+##cFunctionPrototype##;
 __declspec(dllimport) extern const char *hello_data;
 
 int WINAPI WinMain(
@@ -16,6 +15,6 @@ int WINAPI WinMain(
     int       nCmdShow)
 {
     hello_data = "Hello World!";
-    ##invokation##;
+    ##cFunctionInvokation##;
     return 0;
 }
