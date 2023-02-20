@@ -457,10 +457,10 @@ const runString = function (str, {execArgs = [], defs = [], outputDir = ""} = {}
  * @param outputDir
  * @returns {*|null}
  */
-const invokeCFunction = function (dll, {outputDir = "./"} = {})
+const invokeFunction = function (funcName, dll, {outputDir = "./"} = {})
 {
     // Compile the DLL
-    const {success: successCompile, compiledPath: generatedSharedLibraryPath, fileName} = compileLibrary(dll, {outputDir});
+    const {success: successCompile, compiledPath: generatedSharedLibraryPath} = compileLibrary(dll, {outputDir});
     if (!successCompile)
     {
         return null;
@@ -471,7 +471,7 @@ const invokeCFunction = function (dll, {outputDir = "./"} = {})
         return null;
     }
 
-    const str = loadTemplate("winmain.c", {shebang: "#!/usr/local/bin/tcc -run"});
+    const str = loadTemplate("winmain.c", {shebang: "#!/usr/local/bin/tcc -run", invokation: funcName});
     const {success, result, stderr, stdout, status, message, commandLine, compiledPath} = runString(str, {outputDir, defs: [generatedSharedLibraryPath]});
 
     message && console.log({lid: "NC6542"}, message);
@@ -485,7 +485,7 @@ module.exports = {
     runFile,
     runLive,
     runBinary,
-    invokeCFunction,
+    invokeFunction,
     RUN_TYPE,
     BIN_TYPE,
     ARCH_TYPE,
@@ -502,7 +502,7 @@ module.exports.runLive = runLive;
 module.exports.runString = runString;
 module.exports.runBinary = runBinary;
 
-module.exports.invokeCFunction = invokeCFunction;
+module.exports.invokeFunction = invokeFunction;
 
 module.exports.RUN_TYPE = RUN_TYPE;
 module.exports.BIN_TYPE = BIN_TYPE;
