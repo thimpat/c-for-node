@@ -1,5 +1,5 @@
 const path = require("path");
-const {existsSync, writeFileSync, unlinkSync} = require("fs");
+const {existsSync, writeFileSync, unlinkSync, readFileSync} = require("fs");
 const crypto = require("crypto");
 
 const {execFileSync} = require('child_process');
@@ -83,13 +83,13 @@ const runBinary = function (execPath, {
     }
 
     const commandLine = `${execPath} ${execArgs.join(" ")}`;
-    let result, stderr, stdout, status, message, success = false;
+    let data, stderr, stdout, status, message, success = false;
 
     try
     {
-        result = execFileSync(execPath, execArgs, {stdio: "pipe", cwd: cwd || process.cwd()});
+        data = execFileSync(execPath, execArgs, {stdio: "pipe", cwd: cwd || process.cwd()});
         success = true;
-        message = result?.toString();
+        message = data?.toString();
     }
     catch (error)
     {
@@ -104,7 +104,7 @@ const runBinary = function (execPath, {
         console.rawLog(message);
     }
 
-    return {success, result, stderr, stdout, status, message, commandLine};
+    return {success, data, stderr, stdout, status, message, commandLine};
 }
 
 /**
@@ -415,12 +415,12 @@ const runFile = function (filePath, {execArgs = [], defs = [], output = "", outp
         symbol: "sparkles"
     }, `${preCommandMessage}${commandLine}`);
 
-    const {success, result, stderr, stdout, status, message} = runBinary(compiledPath, {
+    const {success, data, stderr, stdout, status, message} = runBinary(compiledPath, {
         execArgs,
         preCommandMessage,
     });
 
-    return {success, result, stderr, stdout, status, message, commandLine, compiledPath};
+    return {success, data, stderr, stdout, status, message, commandLine, compiledPath};
 }
 
 /**
@@ -464,7 +464,7 @@ const runString = function (str, {execArgs = [], defs = [], outputDir = ""} = {}
     writeFileSync(filePath, str, {encoding: "utf-8"});
 
     // const result = runLive(filePath, {defs, outputDir});
-    const {success, result, stderr, stdout, status, message, commandLine, compiledPath} = runFile(filePath, {
+    const {success, data, stderr, stdout, status, message, commandLine, compiledPath} = runFile(filePath, {
         defs,
         outputDir
     });
@@ -472,7 +472,7 @@ const runString = function (str, {execArgs = [], defs = [], outputDir = ""} = {}
     existsSync(filePath) && unlinkSync(filePath);
     existsSync(compiledPath) && unlinkSync(compiledPath);
 
-    return {success, result, stderr, stdout, status, message, commandLine, compiledPath};
+    return {success, data, stderr, stdout, status, message, commandLine, compiledPath};
 }
 
 /**
@@ -500,18 +500,22 @@ const invokeFunction = function (cFunctionInvokation, dll, {outputDir = "./", cF
             return null;
         }
 
+        const fileSharingPath = "sharer.txt";
         const str = loadTemplate("winmain.c", {
             shebang: "#!/usr/local/bin/tcc -run",
             cFunctionInvokation,
-            cFunctionPrototype
+            cFunctionPrototype,
+            fileSharingPath
         });
-        const {success, result, stderr, stdout, status, message, commandLine, compiledPath} = runString(str, {
+        const {success, data, stderr, stdout, status, message, commandLine, compiledPath} = runString(str, {
             outputDir,
             defs: [generatedSharedLibraryPath]
         });
 
-        message && console.log({lid: "NC6542"}, message);
-        return {success, result, stderr, stdout, status, message, commandLine, compiledPath};
+        const result = readFileSync(fileSharingPath, {encoding: "utf-8"});
+        unlinkSync(fileSharingPath);
+        // message && console.log({lid: "NC6542"}, message);
+        return {success, result, data, stderr, stdout, status, message, commandLine, compiledPath};
     }
     catch (e)
     {
@@ -569,9 +573,10 @@ function generateInvoker(cFunctionPrototype, funcName, args)
  */
 const invokeFunctionFromTable = function (extraInfo, {outputDir = "./"} = {}, ...args)
 {
-    const {cFunctionPrototype, fallback, self, binaryLocation, funcName} = extraInfo;
+    const {cFunctionPrototype, self, binaryLocation, funcName} = extraInfo;
     const functionCall = generateInvoker(cFunctionPrototype, funcName, args);
-    return invokeFunction.call(self, functionCall, binaryLocation, {cFunctionPrototype, outputDir});
+    const {result} = invokeFunction.call(self, functionCall, binaryLocation, {cFunctionPrototype, outputDir});
+    return result;
 }
 
 /**
