@@ -1,5 +1,5 @@
 {
-  "name": "c-node",
+  "name": "@thimpat/c-node",
   "version": "1.0.0",
   "description": "",
   "main": "./esm/index.mjs",
