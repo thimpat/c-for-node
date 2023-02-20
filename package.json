@@ -20,7 +20,7 @@
   },
   "keywords": [],
   "author": "Patrice THIMOTHEE",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "@thimpat/libutils": "^1.16.0",
     "analogger": "^1.23.3",
