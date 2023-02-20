@@ -16,6 +16,6 @@ int WINAPI WinMain(
     int       nCmdShow)
 {
     hello_data = "Hello World!";
-    hello_func();
+    ##invokation##;
     return 0;
 }
