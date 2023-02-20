@@ -1,8 +1,8 @@
 
 C-node is a module that allows invoking C code from your nodeJs application.
-The module uses TCC under the hood
+It does not use node-gyp but the TCC compiler.
 
-## Installation
+# Installation
 
 ```shell
 npm install c-node
@@ -12,7 +12,7 @@ npm install c-node
 
 ---
 
-## Usage
+# Usage
 
 CJS
 ```javascript
@@ -40,7 +40,7 @@ $> c-node [options]
 
 ---
 
-## Examples
+# Examples
 
 All examples are part of the TCC library
 
@@ -104,3 +104,78 @@ runLive("examples/hello_win.c");
 ```
 
 <br/>
+
+---
+
+# API
+
+<br/>
+
+## runFile
+
+> Compile then run a source code
+
+<br/>
+
+#### Usage
+
+```javascript
+runFile(sourcePath, options);
+```
+
+<br/>
+
+#### Options
+
+| Properties | Description                             | Type   | Default                               |     |
+|------------|-----------------------------------------|--------|---------------------------------------|-----|
+| outputDir  | Directory path for generated the binary | string | ""                                    |     |
+| output     | File path for generated binary          | string | current location + target binary name |     |
+|            |                                         |        |                                       |     |
+
+<br/>
+
+#### Examples
+
+###### example.js ↴
+```javascript
+const {runFile} = require("c-node");
+
+// Generate ./demo/ex1.exe
+runFile("examples/ex1.c", {outputDir: "demo/"});
+```
+
+<br/>
+
+## invokeFunction
+
+> Call a function from a .dll
+
+<br/>
+
+#### Usage
+
+```javascript
+invokeFunction(functionCallString, filePath, {outputDir});
+```
+
+<br/>
+
+#### Options
+
+| Properties | Description                             | Type   | Default                               |     |
+|------------|-----------------------------------------|--------|---------------------------------------|-----|
+| outputDir  | Directory path for generated the binary | string | ""                                    |     |
+
+<br/>
+
+#### Examples
+
+###### example.js ↴
+```javascript
+const {invokeFunction} = require("c-node");
+
+const result = invokeFunction("hello_func()", "examples/dll.c", {outputDir: "demo/"});
+console.log(result);
+```
+
