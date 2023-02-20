@@ -245,15 +245,14 @@ const compileSource = function (filePath, {
     if (!successInfo)
     {
         console.error({lid: "NC5639"}, message);
-        process.exitCode = statusInfo;
-        return {success: false};
+        return {success: false, status: statusInfo, message};
     }
 
     if (!compiledPath)
     {
-        console.error({lid: "NC5641"}, `File [${compiledPath}] not found`);
-        process.exitCode = PROCESS_ERROR_CODE.COMPILED_BINARY_UNDEFINED;
-        return {success: false};
+        const message = `File [${compiledPath}] not found`
+        console.error({lid: "NC5641"}, message);
+        return {success: false, status: PROCESS_ERROR_CODE.COMPILED_BINARY_UNDEFINED, message};
     }
 
     let preCommandMessage = "Executing TCC: ";
@@ -285,15 +284,14 @@ const compileSource = function (filePath, {
 
     if (!success)
     {
-        process.exitCode = status;
-        return {success: false};
+        return {success: false, status};
     }
 
     if (!existsSync(compiledPath))
     {
-        console.error({lid: "NC5629"}, `Failed to compile [${filePath}] to [${compiledPath}]`);
-        process.exitCode = PROCESS_ERROR_CODE.COMPILED_BINARY_NOT_FOUND;
-        return {success: false};
+        const message = `Failed to compile [${filePath}] to [${compiledPath}]`;
+        console.error({lid: "NC5629"}, message);
+        return {success: false, status: PROCESS_ERROR_CODE.COMPILED_BINARY_NOT_FOUND, message};
     }
 
     console.log({
@@ -415,9 +413,9 @@ const runLive = function (filePath, {execArgs = [], defs = [], outputDir = ""} =
     let {success} = getInfo(filePath);
     if (!success)
     {
-        console.error({lid: "NC5651"}, `Could not find [${filePath}]`);
-        process.exitCode = PROCESS_ERROR_CODE.SOURCE_NOT_FOUND;
-        return null;
+        const message = `Could not find [${filePath}]`;
+        console.error({lid: "NC5651"}, message);
+        return {success: false, status: PROCESS_ERROR_CODE.SOURCE_NOT_FOUND, message};
     }
 
     let preCommandMessage = "Executing (JIT): ";
