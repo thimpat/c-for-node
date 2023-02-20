@@ -6,6 +6,8 @@
   "scripts": {
     "test": "npm run build:all && npm run test:js && npm run test:ts",
     "build:tcc": "cd tinycc/win32 && build-tcc.bat -c ..\\..\\tcc\\tcc.exe && cd ../.. && clonefile --force tinycc/win32 bin",
+    "build:esm": "to-esm cjs/index.cjs --target esm --output ./esm",
+    "build:all": "npm run build:tcc && npm run build:esm",
     "build:demo": "cd demo/hello && ..\\..\\bin\\tcc.exe -shared ..\\..\\bin\\examples\\dll.c && ..\\..\\bin\\tcc.exe ..\\..\\bin\\examples\\hello_dll.c dll.def && rimraf ../../dll.def && rimraf ../../dll.dll",
     "run:demo": "npm run build:demo && .\\demo\\hello\\hello_dll.exe",
     "#postinstall": "npm run build:tcc && npm run run:demo",
