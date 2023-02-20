@@ -479,6 +479,38 @@ const invokeFunction = function (funcName, dll, {outputDir = "./"} = {})
     return {success, result, stderr, stdout, status, message, commandLine, compiledPath};
 }
 
+/**
+ *
+ * @param binaryLocation
+ * @param funcsProperties
+ * @param outputDir
+ */
+const loadFunctions = function (binaryLocation = "", funcsProperties = {}, {
+    outputDir = process.cwd()
+} = {})
+{
+    if (!binaryLocation)
+    {
+        return {
+            success: false,
+            message: "No binary given",
+            status: PROCESS_ERROR_CODE.COMPILED_BINARY_UNDEFINED
+        }
+    }
+
+    const objs = {};
+    for (let funcName in funcsProperties)
+    {
+        const props = funcsProperties[funcName];
+        const prototype = props.prototype;
+        console.log({lid: "NC3256", color: "orange"}, `Loading function [${funcName}] from binary`);
+        objs[funcName] = invokeFunction.bind(props.this || null, prototype, binaryLocation, {outputDir});
+        props.cBinary = objs[funcName];
+    }
+
+    return objs;
+}
+
 
 module.exports = {
     compileSource,
@@ -504,6 +536,7 @@ module.exports.runString = runString;
 module.exports.runBinary = runBinary;
 
 module.exports.invokeFunction = invokeFunction;
+module.exports.loadFunctions = loadFunctions;
 
 module.exports.RUN_TYPE = RUN_TYPE;
 module.exports.BIN_TYPE = BIN_TYPE;
