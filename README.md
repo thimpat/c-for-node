@@ -5,7 +5,7 @@ It does not use node-gyp but the TCC compiler.
 # Installation
 
 ```shell
-npm install c-node
+npm install @thimpat/c-node
 ```
 
 <br/>
@@ -16,7 +16,7 @@ npm install c-node
 
 CJS
 ```javascript
-const cNode = require("c-node");
+const cNode = require("@thimpat/c-node");
 ```
 
 <br/>
@@ -24,7 +24,7 @@ const cNode = require("c-node");
 ESM
 
 ```javascript
-import cNode from "c-node";
+import cNode from "@thimpat/c-node";
 ```
 
 <br/>
@@ -42,7 +42,7 @@ $> c-node [options]
 
 # Examples
 
-All examples are part of the TCC library
+All examples are part of the TCC library.
 
 ### Compilation
 
@@ -51,7 +51,7 @@ All examples are part of the TCC library
 #### Example 1 - Compile a C program to an executable
 
 ```javascript
-const {compileSource} = require("c-node");
+const {compileSource} = require("@thimpat/c-node");
 const {success, status} = compileSource("examples/hello_win.c");
 if (!success)
 {
@@ -65,7 +65,7 @@ if (!success)
 #### Example 2 - Compile a C source to a shared library (dll)
 
 ```javascript
-const {compileLibrary} = require("c-node");
+const {compileLibrary} = require("@thimpat/c-node");
 const {success, status} = compileLibrary("examples/dll.c")
 ```
 
@@ -77,11 +77,11 @@ const {success, status} = compileLibrary("examples/dll.c")
 
 <br/>
 
-#### Example 3 - Compile if target nonexistent then run source
+#### Example 3 - Compile if target nonexistent, then run source
 
 ###### example.js ↴
 ```javascript
-const {runFile} = require("c-node");
+const {runFile} = require("@thimpat/c-node");
 runFile("examples/hello_win.c");
 ```
 
@@ -97,9 +97,9 @@ runFile("examples/hello_win.c");
 
 ###### example.js ↴
 ```javascript
-const {runLive} = require("c-node");
+const {runLive} = require("@thimpat/c-node");
 
-// No generated executable, runs from source code
+// Runs from source code
 runLive("examples/hello_win.c");
 ```
 
@@ -139,7 +139,7 @@ runFile(sourcePath, options);
 
 ###### example.js ↴
 ```javascript
-const {runFile} = require("c-node");
+const {runFile} = require("@thimpat/c-node");
 
 // Generate ./demo/ex1.exe
 runFile("examples/ex1.c", {outputDir: "demo/"});
@@ -173,7 +173,7 @@ invokeFunction(functionCallString, filePath, {outputDir});
 
 ###### example.js ↴
 ```javascript
-const {invokeFunction} = require("c-node");
+const {invokeFunction} = require("@thimpat/c-node");
 
 const result = invokeFunction("hello_func()", "examples/dll.c", {outputDir: "demo/"});
 console.log(result);
