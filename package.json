@@ -1,7 +1,7 @@
 {
   "name": "@thimpat/c-node",
   "version": "1.0.0",
-  "description": "",
+  "description": "C-node is a module that allows invoking C code from your nodeJs application. It does not use node-gyp but the TCC compiler.",
   "main": "./esm/index.mjs",
   "scripts": {
     "test": "npm run build:all && npm run test:js && npm run test:ts",
@@ -47,5 +47,16 @@
   },
   "bin": {
     "c-node": "cli.cjs"
-  }
+  },
+  "directories": {
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/thimpat/c-node.git"
+  },
+  "bugs": {
+    "url": "https://github.com/thimpat/c-node/issues"
+  },
+  "homepage": "https://github.com/thimpat/c-node#readme"
 }
