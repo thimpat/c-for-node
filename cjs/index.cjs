@@ -12,6 +12,9 @@ const {loadTemplate} = require("./tpl.cjs");
 
 AnaLogger.startLogger();
 
+// --------------------------------------------------------------------
+// Constants
+// --------------------------------------------------------------------
 const ARCH_TYPE = {
     WIN32: "WIN32",
     WIN64: "WIN64",
@@ -37,9 +40,21 @@ const PROCESS_ERROR_CODE = {
 }
 
 const CONSTANTS = {
-  prefixTemp: `cnode-temp-`
+    prefixTemp: `cnode-temp-`
 };
 
+// --------------------------------------------------------------------
+// Stores
+// --------------------------------------------------------------------
+/**
+ * Keep a reference to every loaded C function
+ * @type {{[string]: INVOKER_TYPE}}
+ */
+const funcTable = {};
+
+// --------------------------------------------------------------------
+// Core
+// --------------------------------------------------------------------
 /**
  * Run a binary
  * @param execPath
@@ -371,7 +386,13 @@ const getInfo = function (filePath, {output = "", outputDir = "", binType = BIN_
  */
 const runFile = function (filePath, {execArgs = [], defs = [], output = "", outputDir = ""} = {})
 {
-    let {success: successCompile, compiledPath} = compileSource(filePath, {binType: BIN_TYPE.EXECUTABLE, output, outputDir, defs, execArgs});
+    let {success: successCompile, compiledPath} = compileSource(filePath, {
+        binType: BIN_TYPE.EXECUTABLE,
+        output,
+        outputDir,
+        defs,
+        execArgs
+    });
     if (!successCompile)
     {
         return {success: false};
@@ -443,40 +464,114 @@ const runString = function (str, {execArgs = [], defs = [], outputDir = ""} = {}
     writeFileSync(filePath, str, {encoding: "utf-8"});
 
     // const result = runLive(filePath, {defs, outputDir});
-    const {success, result, stderr, stdout, status, message, commandLine, compiledPath} = runFile(filePath, {defs, outputDir});
+    const {success, result, stderr, stdout, status, message, commandLine, compiledPath} = runFile(filePath, {
+        defs,
+        outputDir
+    });
 
     existsSync(filePath) && unlinkSync(filePath);
-    existsSync(compiledPath) &&unlinkSync(compiledPath);
+    existsSync(compiledPath) && unlinkSync(compiledPath);
 
     return {success, result, stderr, stdout, status, message, commandLine, compiledPath};
 }
 
 /**
  * Invoke a function from a shared library file (.dll)
- * @param funcName
+ * @param {string} cFunctionInvokation
+ * @param {FilePath} dll Path to shared library
+ * @param {string} outputDir Directory to use to run the external C function
+ * @param {string} cFunctionPrototype Function prototype
+ * @returns {{success: boolean}|{result: *, stdout: *, success: *, compiledPath: *, stderr: *, message: *, commandLine:
+ *     *, status: *}|null}
+ */
+const invokeFunction = function (cFunctionInvokation, dll, {outputDir = "./", cFunctionPrototype = ""} = {})
+{
+    try
+    {
+        // Compile the DLL
+        const {success: successCompile, compiledPath: generatedSharedLibraryPath} = compileLibrary(dll, {outputDir});
+        if (!successCompile)
+        {
+            return null;
+        }
+
+        if (!generatedSharedLibraryPath)
+        {
+            return null;
+        }
+
+        const str = loadTemplate("winmain.c", {
+            shebang: "#!/usr/local/bin/tcc -run",
+            cFunctionInvokation,
+            cFunctionPrototype
+        });
+        const {success, result, stderr, stdout, status, message, commandLine, compiledPath} = runString(str, {
+            outputDir,
+            defs: [generatedSharedLibraryPath]
+        });
+
+        message && console.log({lid: "NC6542"}, message);
+        return {success, result, stderr, stdout, status, message, commandLine, compiledPath};
+    }
+    catch (e)
+    {
+        console.error({lid: "NC5413"}, e.message);
+    }
+
+    return {success: false};
+}
+
+function getArgumentPrototype(cFunctionPrototype)
+{
+    const arr = /\(([^\]]*)\)/.exec(cFunctionPrototype);
+    const grp1 = arr[1] || "";
+    return grp1.split(",");
+}
+function generateInvoker(cFunctionPrototype, funcName, args)
+{
+    const prototypeArguments = getArgumentPrototype(cFunctionPrototype);
+    let n = prototypeArguments.length;
+
+    const newArguments = [];
+    for (let i = 0; i < n; ++i)
+    {
+        const typeFromPrototype = prototypeArguments[i].trim();
+        const arg = args[i];
+
+        // char*
+        if (/char\s*\*/.test(typeFromPrototype))
+        {
+            newArguments.push(`"${arg}"`);
+        }
+        else
+        {
+            newArguments.push(arg);
+        }
+
+    }
+
+    const parameters = newArguments.join(", ");
+    const strInvoker = `${funcName}(${parameters})`;
+
+    return strInvoker;
+}
+
+/**
+ *
+ * @param {INVOKER_TYPE} extraInfo
+ * @param functionCall
  * @param dll
  * @param outputDir
  * @returns {*|null}
+ * @param args Params used in NodeJs to invoke the c function
+ * @returns {{success: boolean}|{result: *, stdout: *, success: *, compiledPath: *, stderr: *, message: *, commandLine:
+ *     *, status: *}|null}
  */
-const invokeFunction = function (funcName, dll, {outputDir = "./"} = {})
+const invokeFunctionFromTable = function (extraInfo, {outputDir = "./"} = {}, ...args)
 {
-    // Compile the DLL
-    const {success: successCompile, compiledPath: generatedSharedLibraryPath} = compileLibrary(dll, {outputDir});
-    if (!successCompile)
-    {
-        return null;
-    }
-
-    if (!generatedSharedLibraryPath)
-    {
-        return null;
-    }
-
-    const str = loadTemplate("winmain.c", {shebang: "#!/usr/local/bin/tcc -run", invokation: funcName});
-    const {success, result, stderr, stdout, status, message, commandLine, compiledPath} = runString(str, {outputDir, defs: [generatedSharedLibraryPath]});
-
-    message && console.log({lid: "NC6542"}, message);
-    return {success, result, stderr, stdout, status, message, commandLine, compiledPath};
+    const {cFunctionPrototype, fallback, self, binaryLocation, funcName} = extraInfo;
+    const functionCall = generateInvoker(cFunctionPrototype, funcName, args);
+    return invokeFunction.call(self, functionCall, binaryLocation, {cFunctionPrototype, outputDir});
 }
 
 /**
@@ -494,21 +589,41 @@ const loadFunctions = function (binaryLocation = "", funcsProperties = {}, {
         return {
             success: false,
             message: "No binary given",
-            status: PROCESS_ERROR_CODE.COMPILED_BINARY_UNDEFINED
+            status : PROCESS_ERROR_CODE.COMPILED_BINARY_UNDEFINED
         }
     }
 
-    const objs = {};
+    // Contains references to exported functions
+    funcTable[binaryLocation] = funcTable[binaryLocation] || {};
+
+    const tables = funcTable[binaryLocation];
+    const cExported = {};
+
     for (let funcName in funcsProperties)
     {
         const props = funcsProperties[funcName];
-        const prototype = props.prototype;
+
+        // Store function name
+        props.funcName = funcName;
+
+        // Store prototype
+        props.cFunctionPrototype = props.prototype || props.cFunctionPrototype || "";
+        delete props.prototype;
+
+        // Store binary location
+        props.binaryLocation = binaryLocation;
+
+        const cFunctionPrototype = props.cFunctionPrototype || funcName;
+        tables[cFunctionPrototype] = props || {};
+
         console.log({lid: "NC3256", color: "orange"}, `Loading function [${funcName}] from binary`);
-        objs[funcName] = invokeFunction.bind(props.this || null, prototype, binaryLocation, {outputDir});
-        props.cBinary = objs[funcName];
+
+        // Store invoker
+        cExported[funcName] =
+            invokeFunctionFromTable.bind(props.self || null, tables[cFunctionPrototype], {outputDir});
     }
 
-    return objs;
+    return cExported;
 }
 
 
