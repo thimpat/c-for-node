@@ -1,6 +1,6 @@
 {
   "name": "@thimpat/c-node",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "C-node is a module that allows invoking C code from your nodeJs application. It does not use node-gyp but the TCC compiler.",
   "main": "./esm/index.mjs",
   "scripts": {
