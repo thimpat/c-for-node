@@ -3,7 +3,7 @@ const {existsSync, writeFileSync, unlinkSync, readFileSync} = require("fs");
 const crypto = require("crypto");
 
 const {execFileSync} = require('child_process');
-const {joinPath, createAppTempDir} = require("@thimpat/libutils");
+const {joinPath, resolvePath, createAppTempDir} = require("@thimpat/libutils");
 const {AnaLogger} = require("analogger");
 
 const {getTccPath} = require("./utils.cjs");
@@ -385,12 +385,12 @@ const getInfo = function (filePath, {output = "", outputDir = "", binType = BIN_
  * @param outputDir
  * @returns {*}
  */
-const runFile = function (filePath, {execArgs = [], defs = [], output = "", outputDir = ""} = {})
+const runFile = function (filePath, {execArgs = [], defs = [], output = "", cwd = ""} = {})
 {
     let {success: successCompile, compiledPath} = compileSource(filePath, {
         binType: BIN_TYPE.EXECUTABLE,
         output,
-        outputDir,
+        outputDir: cwd,
         defs,
         execArgs
     });
@@ -419,6 +419,7 @@ const runFile = function (filePath, {execArgs = [], defs = [], output = "", outp
     const {success, data, stderr, stdout, status, message} = runBinary(compiledPath, {
         execArgs,
         preCommandMessage,
+        cwd
     });
 
     return {success, data, stderr, stdout, status, message, commandLine, compiledPath};
@@ -458,16 +459,16 @@ const runLive = function (filePath, {execArgs = [], defs = [], outputDir = ""} =
     });
 }
 
-const runString = function (str, {execArgs = [], defs = [], outputDir = ""} = {})
+const runString = function (str, {execArgs = [], defs = [], cwd = "./"} = {})
 {
     const fileName = CONSTANTS.prefixTemp + crypto.randomInt(0, 9999999) + ".c";
-    const filePath = joinPath(outputDir, fileName);
+    const filePath = joinPath(cwd, fileName);
     writeFileSync(filePath, str, {encoding: "utf-8"});
 
     // const result = runLive(filePath, {defs, outputDir});
     const {success, data, stderr, stdout, status, message, commandLine, compiledPath} = runFile(filePath, {
         defs,
-        outputDir
+        cwd
     });
 
     existsSync(filePath) && unlinkSync(filePath);
@@ -485,20 +486,22 @@ const runString = function (str, {execArgs = [], defs = [], outputDir = ""} = {}
  * @returns {{success: boolean}|{result: *, stdout: *, success: *, compiledPath: *, stderr: *, message: *, commandLine:
  *     *, status: *}|null}
  */
-const invokeBinaryFunction = function (cFunctionInvokation, dll, {outputDir = "./", cFunctionPrototype = ""} = {})
+const invokeBinaryFunction = function (cFunctionInvokation, libraryPath, {cFunctionPrototype = ""} = {})
 {
     try
     {
-        // Compile the DLL
-        const {success: successCompile, compiledPath: generatedSharedLibraryPath} = compileLibrary(dll, {outputDir});
-        if (!successCompile)
+        if (!libraryPath)
         {
-            return null;
+            const message = `Invalid library`;
+            console.error({lid: "NC6651"}, message);
+            return {success: false, message};
         }
 
-        if (!generatedSharedLibraryPath)
+        if (!existsSync(libraryPath))
         {
-            return null;
+            const message = `Could not find ${libraryPath}`;
+            console.error({lid: "NC6653"}, message);
+            return {success: false, message};
         }
 
         const tmpDir = createAppTempDir({appName: APP_NAME});
@@ -510,8 +513,8 @@ const invokeBinaryFunction = function (cFunctionInvokation, dll, {outputDir = ".
             fileSharingPath
         });
         const {success, data, stderr, stdout, status, message, commandLine, compiledPath} = runString(str, {
-            outputDir,
-            defs: [generatedSharedLibraryPath]
+            cwd: process.cwd(),
+            defs: [libraryPath]
         });
 
         const result = readFileSync(fileSharingPath, {encoding: "utf-8"});
@@ -601,22 +604,71 @@ function generateInvoker(cFunctionPrototype, funcName, args)
 }
 
 /**
- *
+ * Invoke a c function based on their registration with loadBinaryFunctions()
  * @param {INVOKER_TYPE} extraInfo
- * @param functionCall
- * @param dll
- * @param outputDir
  * @returns {*|null}
  * @param args Params used in NodeJs to invoke the c function
  * @returns {{success: boolean}|{result: *, stdout: *, success: *, compiledPath: *, stderr: *, message: *, commandLine:
  *     *, status: *}|null}
  */
-const invokeFunctionFromTable = function (extraInfo, {outputDir = "./"} = {}, ...args)
+const invokeFunctionFromTable = function (extraInfo, ...args)
 {
     const {cFunctionPrototype, self, binaryLocation, funcName} = extraInfo;
     const functionCall = generateInvoker(cFunctionPrototype, funcName, args);
-    const {result} = invokeFunction.call(self, functionCall, binaryLocation, {cFunctionPrototype, outputDir});
+    const {result} = invokeBinaryFunction.call(self, functionCall, binaryLocation, {cFunctionPrototype});
     return result;
+}
+
+/**
+ * Creates reference to the shared library functions to be loaded
+ * @param sourceCodeLocation
+ * @param funcsProperties
+ * @param outputDir
+ */
+const loadBinaryFunctions = function (sourceCodeLocation = "", funcsProperties = {})
+{
+    if (!sourceCodeLocation)
+    {
+        return {
+            success: false,
+            message: "No source given",
+            status : PROCESS_ERROR_CODE.COMPILED_BINARY_UNDEFINED
+        }
+    }
+
+    sourceCodeLocation = resolvePath(sourceCodeLocation);
+
+    // Contains references to exported functions
+    funcTable[sourceCodeLocation] = funcTable[sourceCodeLocation] || {};
+
+    const tables = funcTable[sourceCodeLocation];
+    const cExported = {};
+
+    for (let funcName in funcsProperties)
+    {
+        const props = funcsProperties[funcName];
+
+        // Store function name
+        props.funcName = funcName;
+
+        // Store prototype
+        props.cFunctionPrototype = props.prototype || props.cFunctionPrototype || "";
+        delete props.prototype;
+
+        // Store binary location
+        props.binaryLocation = sourceCodeLocation;
+
+        const cFunctionPrototype = props.cFunctionPrototype || funcName;
+        tables[cFunctionPrototype] = props || {};
+
+        console.log({lid: "NC3256", color: "orange"}, `Loading function [${funcName}] from binary`);
+
+        // Store invoker
+        cExported[funcName] =
+            invokeFunctionFromTable.bind(props.self || null, tables[cFunctionPrototype]);
+    }
+
+    return cExported;
 }
 
 /**
@@ -698,6 +750,7 @@ module.exports.runBinary = runBinary;
 module.exports.invokeBinaryFunction = invokeBinaryFunction;
 module.exports.invokeFunction = invokeFunction;
 
+module.exports.loadBinaryFunctions = loadBinaryFunctions;
 module.exports.loadFunctions = loadFunctions;
 
 module.exports.RUN_TYPE = RUN_TYPE;
