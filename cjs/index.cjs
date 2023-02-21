@@ -3,18 +3,19 @@ const {existsSync, writeFileSync, unlinkSync, readFileSync} = require("fs");
 const crypto = require("crypto");
 
 const {execFileSync} = require('child_process');
-const {joinPath, resolvePath} = require("@thimpat/libutils");
+const {joinPath, createAppTempDir} = require("@thimpat/libutils");
 const {AnaLogger} = require("analogger");
 
 const {getTccPath} = require("./utils.cjs");
 const {loadTemplate} = require("./tpl.cjs");
-
 
 AnaLogger.startLogger();
 
 // --------------------------------------------------------------------
 // Constants
 // --------------------------------------------------------------------
+const APP_NAME = "c-node";
+
 const ARCH_TYPE = {
     WIN32: "WIN32",
     WIN64: "WIN64",
@@ -500,7 +501,8 @@ const invokeFunction = function (cFunctionInvokation, dll, {outputDir = "./", cF
             return null;
         }
 
-        const fileSharingPath = "sharer.txt";
+        const tmpDir = createAppTempDir({appName: APP_NAME});
+        const fileSharingPath = joinPath(tmpDir, `${APP_NAME}-sharer-${crypto.randomInt(1000000, 99999999)}.txt`);
         const str = loadTemplate("winmain.c", {
             shebang: "#!/usr/local/bin/tcc -run",
             cFunctionInvokation,
