@@ -546,7 +546,7 @@ const invokeFunction = function (cFunctionInvokation, cSourceCodeLocation, {outp
 {
     try
     {
-        // Compile the DLL
+        // Compile the library
         const {success: successCompile, compiledPath: generatedSharedLibraryPath} = compileLibrary(cSourceCodeLocation, {outputDir});
         if (!successCompile)
         {
@@ -673,15 +673,15 @@ const loadBinaryFunctions = function (sourceCodeLocation = "", funcsProperties =
 
 /**
  *
- * @param sourceCodeLocation
+ * @param cSourceCodeLocation
  * @param funcsProperties
  * @param outputDir
  */
-const loadFunctions = function (sourceCodeLocation = "", funcsProperties = {}, {
+const loadFunctions = function (cSourceCodeLocation = "", funcsProperties = {}, {
     outputDir = process.cwd()
 } = {})
 {
-    if (!sourceCodeLocation)
+    if (!cSourceCodeLocation)
     {
         return {
             success: false,
@@ -690,37 +690,17 @@ const loadFunctions = function (sourceCodeLocation = "", funcsProperties = {}, {
         }
     }
 
-    // Contains references to exported functions
-    funcTable[sourceCodeLocation] = funcTable[sourceCodeLocation] || {};
+    cSourceCodeLocation = resolvePath(cSourceCodeLocation);
 
-    const tables = funcTable[sourceCodeLocation];
-    const cExported = {};
-
-    for (let funcName in funcsProperties)
+    // Compile the source
+    const {success: successCompile, compiledPath} = compileLibrary(cSourceCodeLocation, {outputDir});
+    if (!successCompile)
     {
-        const props = funcsProperties[funcName];
-
-        // Store function name
-        props.funcName = funcName;
-
-        // Store prototype
-        props.cFunctionPrototype = props.prototype || props.cFunctionPrototype || "";
-        delete props.prototype;
-
-        // Store binary location
-        props.binaryLocation = sourceCodeLocation;
-
-        const cFunctionPrototype = props.cFunctionPrototype || funcName;
-        tables[cFunctionPrototype] = props || {};
-
-        console.log({lid: "NC3256", color: "orange"}, `Loading function [${funcName}] from binary`);
-
-        // Store invoker
-        cExported[funcName] =
-            invokeFunctionFromTable.bind(props.self || null, tables[cFunctionPrototype], {outputDir});
+        return null;
     }
 
-    return cExported;
+
+    return loadBinaryFunctions(compiledPath, funcsProperties)
 }
 
 
