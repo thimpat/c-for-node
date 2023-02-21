@@ -24,7 +24,7 @@
   "author": "Patrice THIMOTHEE",
   "license": "MIT",
   "dependencies": {
-    "@thimpat/libutils": "^1.16.0",
+    "@thimpat/libutils": "^1.17.0",
     "analogger": "^1.23.3",
     "clonefile": "^3.8.3",
     "genpack": "^1.8.0",
