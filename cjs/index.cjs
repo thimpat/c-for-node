@@ -316,6 +316,7 @@ const compileSource = function (filePath, {
         color : "#336769"
     }, `Binary generated at [${compiledPath}]`);
 
+    compiledPath = resolvePath(compiledPath);
     return {success: true, compiledPath, fileName};
 }
 
@@ -385,12 +386,12 @@ const getInfo = function (filePath, {output = "", outputDir = "", binType = BIN_
  * @param outputDir
  * @returns {*}
  */
-const runFile = function (filePath, {execArgs = [], defs = [], output = "", cwd = ""} = {})
+const runFile = function (filePath, {execArgs = [], defs = [], output = "", cwd = "", outputDir = ""} = {})
 {
     let {success: successCompile, compiledPath} = compileSource(filePath, {
         binType: BIN_TYPE.EXECUTABLE,
         output,
-        outputDir: cwd,
+        outputDir,
         defs,
         execArgs
     });
