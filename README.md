@@ -61,6 +61,11 @@ __declspec(dllexport) char* hello_func (char* name)
 }
 ```
 
+> dll.c will be compiled automatically when loadFunctions is invoked
+
+<br/>
+
+###### index.js ↴
 ```javascript
 const {loadFunctions} = require("@thimpat/c-node");
 
@@ -80,6 +85,23 @@ const result = hello_func("My name is awesome");
 
 console.log(result);           // All okay
 ```
+
+<br/>
+
+```shell
+node index.js
+```
+
+💻  ↴
+
+![Execute a c function from Node](https://raw.githubusercontent.com/thimpat/demos/main/c-node/images/execute-c-function-from-node.png)
+
+<br/>
+
+💻  ↴
+
+![Output result](https://raw.githubusercontent.com/thimpat/demos/main/c-node/images/output-c-function-result.png)
+
 
 <br/>
 
