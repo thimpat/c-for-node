@@ -485,7 +485,7 @@ const runString = function (str, {execArgs = [], defs = [], outputDir = ""} = {}
  * @returns {{success: boolean}|{result: *, stdout: *, success: *, compiledPath: *, stderr: *, message: *, commandLine:
  *     *, status: *}|null}
  */
-const invokeFunction = function (cFunctionInvokation, dll, {outputDir = "./", cFunctionPrototype = ""} = {})
+const invokeBinaryFunction = function (cFunctionInvokation, dll, {outputDir = "./", cFunctionPrototype = ""} = {})
 {
     try
     {
@@ -518,6 +518,44 @@ const invokeFunction = function (cFunctionInvokation, dll, {outputDir = "./", cF
         unlinkSync(fileSharingPath);
         // message && console.log({lid: "NC6542"}, message);
         return {success, result, data, stderr, stdout, status, message, commandLine, compiledPath};
+    }
+    catch (e)
+    {
+        console.error({lid: "NC5413"}, e.message);
+    }
+
+    return {success: false};
+}
+
+/**
+ * Invoke a function from a c source file
+ * @algo
+ * - Compile c source to binary if non existent
+ * - Invoke compiled function
+ * @param {string} cFunctionInvokation
+ * @param {FilePath} cSourceCodeLocation Path to c code library
+ * @param {string} outputDir Directory to use to run the external C function
+ * @param {string} cFunctionPrototype Function prototype
+ * @returns {{success: boolean}|{result: *, stdout: *, success: *, compiledPath: *, stderr: *, message: *, commandLine:
+ *     *, status: *}|null}
+ */
+const invokeFunction = function (cFunctionInvokation, cSourceCodeLocation, {outputDir = "./", cFunctionPrototype = ""} = {})
+{
+    try
+    {
+        // Compile the DLL
+        const {success: successCompile, compiledPath: generatedSharedLibraryPath} = compileLibrary(cSourceCodeLocation, {outputDir});
+        if (!successCompile)
+        {
+            return null;
+        }
+
+        if (!generatedSharedLibraryPath)
+        {
+            return null;
+        }
+
+        return invokeBinaryFunction(cFunctionInvokation, cSourceCodeLocation, {outputDir, cFunctionPrototype});
     }
     catch (e)
     {
@@ -583,27 +621,27 @@ const invokeFunctionFromTable = function (extraInfo, {outputDir = "./"} = {}, ..
 
 /**
  *
- * @param binaryLocation
+ * @param sourceCodeLocation
  * @param funcsProperties
  * @param outputDir
  */
-const loadFunctions = function (binaryLocation = "", funcsProperties = {}, {
+const loadFunctions = function (sourceCodeLocation = "", funcsProperties = {}, {
     outputDir = process.cwd()
 } = {})
 {
-    if (!binaryLocation)
+    if (!sourceCodeLocation)
     {
         return {
             success: false,
-            message: "No binary given",
+            message: "No source given",
             status : PROCESS_ERROR_CODE.COMPILED_BINARY_UNDEFINED
         }
     }
 
     // Contains references to exported functions
-    funcTable[binaryLocation] = funcTable[binaryLocation] || {};
+    funcTable[sourceCodeLocation] = funcTable[sourceCodeLocation] || {};
 
-    const tables = funcTable[binaryLocation];
+    const tables = funcTable[sourceCodeLocation];
     const cExported = {};
 
     for (let funcName in funcsProperties)
@@ -618,7 +656,7 @@ const loadFunctions = function (binaryLocation = "", funcsProperties = {}, {
         delete props.prototype;
 
         // Store binary location
-        props.binaryLocation = binaryLocation;
+        props.binaryLocation = sourceCodeLocation;
 
         const cFunctionPrototype = props.cFunctionPrototype || funcName;
         tables[cFunctionPrototype] = props || {};
@@ -657,7 +695,9 @@ module.exports.runLive = runLive;
 module.exports.runString = runString;
 module.exports.runBinary = runBinary;
 
+module.exports.invokeBinaryFunction = invokeBinaryFunction;
 module.exports.invokeFunction = invokeFunction;
+
 module.exports.loadFunctions = loadFunctions;
 
 module.exports.RUN_TYPE = RUN_TYPE;
