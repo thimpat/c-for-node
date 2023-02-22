@@ -1,0 +1,5 @@
+LIBRARY dll.dll
+
+EXPORTS
+hello_data
+hello_func
