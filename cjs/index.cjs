@@ -68,7 +68,7 @@ const funcTable = {};
  */
 const runBinary = function (execPath, {
     execArgs = [],
-    cwd = ""
+    cwd = "./"
 } = {})
 {
     if (!execPath)
@@ -88,7 +88,7 @@ const runBinary = function (execPath, {
 
     try
     {
-        data = execFileSync(execPath, execArgs, {stdio: "pipe", cwd: cwd || process.cwd()});
+        data = execFileSync(execPath, execArgs, {stdio: "pipe"});
         success = true;
         message = data?.toString();
     }
@@ -120,39 +120,47 @@ const runBinary = function (execPath, {
  */
 const runTCC = function ({
                              execArgs = [],
-                             cwd = "",
+                             cwd = "./",
                              preCommandMessage = "Executing TCC: ",
                              preCommandSymbol = "coffee",
                              preCommandColor = "rgb(110, 110, 110)",
                              showCNodeMessages = true
                          } = {})
 {
-    const tccExecutablePath = getTccPath();
-    if (!tccExecutablePath)
+    try
     {
-        return {success: false, status: 2};
+        const tccExecutablePath = getTccPath();
+        if (!tccExecutablePath)
+        {
+            return {success: false, status: 2};
+        }
+
+        if (showCNodeMessages)
+        {
+            const commandLine = `${tccExecutablePath} ${execArgs.join(" ")}`;
+            console.log({
+                lid   : "NC5618",
+                color : preCommandColor,
+                symbol: "coffee"
+            }, `${preCommandMessage}${commandLine}`);
+        }
+
+        const {success, message, status} = runBinary(tccExecutablePath, {
+            cwd,
+            execArgs,
+            preCommandMessage,
+            preCommandSymbol,
+            preCommandColor
+        });
+
+        return {success, tccExecutablePath, status, message};
+    }
+    catch (e)
+    {
+        console.error({lid: "NC3215"}, e.message);
     }
 
-    if (showCNodeMessages)
-    {
-        const commandLine = `${tccExecutablePath} ${execArgs.join(" ")}`;
-        console.log({
-            lid   : "NC5618",
-            color : preCommandColor,
-            symbol: "coffee"
-        }, `${preCommandMessage}${commandLine}`);
-    }
-
-    const {success, message, status} = runBinary(tccExecutablePath, {
-        cwd,
-        execArgs,
-        preCommandMessage,
-        preCommandSymbol,
-        preCommandColor
-    });
-
-    return {success, tccExecutablePath, status, message};
-
+    return {success: false};
 }
 
 /**
@@ -249,7 +257,8 @@ const compileSource = function (filePath, {
     outputDir = "",
     defs = [],
     tccOptions = [],
-    force = false
+    force = false,
+    cwd = ""
 } = {})
 {
     let {success: successInfo, execPath: compiledPath, message, status: statusInfo, fileName} = getInfo(filePath, {
@@ -295,7 +304,8 @@ const compileSource = function (filePath, {
         preCommandMessage,
         preCommandSymbol: "coffee",
         preCommandColor : "#656565",
-        tccOptions
+        tccOptions,
+        cwd
     });
 
     if (!success)
@@ -326,9 +336,9 @@ const compileSource = function (filePath, {
  * @param outputDir
  * @returns {{fileName, success: boolean, compiledPath?: string}}
  */
-const compileLibrary = function (filePath, {outputDir = ""} = {})
+const compileLibrary = function (filePath, {outputDir = "", cwd = ""} = {})
 {
-    return compileSource(filePath, {binType: BIN_TYPE.SHARED, outputDir})
+    return compileSource(filePath, {binType: BIN_TYPE.SHARED, outputDir, cwd})
 }
 
 const registerCall = function ()
@@ -393,7 +403,8 @@ const runFile = function (filePath, {execArgs = [], defs = [], output = "", cwd 
         output,
         outputDir,
         defs,
-        execArgs
+        execArgs,
+        cwd
     });
     if (!successCompile)
     {
@@ -487,7 +498,7 @@ const runString = function (str, {execArgs = [], defs = [], cwd = "./"} = {})
  * @returns {{success: boolean}|{result: *, stdout: *, success: *, compiledPath: *, stderr: *, message: *, commandLine:
  *     *, status: *}|null}
  */
-const invokeBinaryFunction = function (cFunctionInvokation, libraryPath, {cFunctionPrototype = ""} = {})
+const invokeBinaryFunction = function (cFunctionInvokation, libraryPath, {cFunctionPrototype = "", cwd = ""} = {})
 {
     try
     {
@@ -514,7 +525,7 @@ const invokeBinaryFunction = function (cFunctionInvokation, libraryPath, {cFunct
             fileSharingPath
         });
         const {success, data, stderr, stdout, status, message, commandLine, compiledPath} = runString(str, {
-            cwd: process.cwd(),
+            cwd,
             defs: [libraryPath]
         });
 
@@ -543,23 +554,27 @@ const invokeBinaryFunction = function (cFunctionInvokation, libraryPath, {cFunct
  * @returns {{success: boolean}|{result: *, stdout: *, success: *, compiledPath: *, stderr: *, message: *, commandLine:
  *     *, status: *}|null}
  */
-const invokeFunction = function (cFunctionInvokation, cSourceCodeLocation, {outputDir = "./", cFunctionPrototype = ""} = {})
+const invokeFunction = function (cFunctionInvokation, cSourceCodeLocation, {
+    cFunctionPrototype = "",
+    cwd = "./"
+} = {})
 {
     try
     {
         // Compile the library
-        const {success: successCompile, compiledPath: generatedSharedLibraryPath} = compileLibrary(cSourceCodeLocation, {outputDir});
+        const {success: successCompile, compiledPath} = compileLibrary(cSourceCodeLocation, {outputDir: cwd, cwd});
         if (!successCompile)
         {
             return null;
         }
 
-        if (!generatedSharedLibraryPath)
+        if (!compiledPath)
         {
             return null;
         }
 
-        return invokeBinaryFunction(cFunctionInvokation, cSourceCodeLocation, {outputDir, cFunctionPrototype});
+        const result = invokeBinaryFunction(cFunctionInvokation, compiledPath, {cwd, cFunctionPrototype});
+        return result;
     }
     catch (e)
     {
@@ -575,6 +590,7 @@ function getArgumentPrototype(cFunctionPrototype)
     const grp1 = arr[1] || "";
     return grp1.split(",");
 }
+
 function generateInvoker(cFunctionPrototype, funcName, args)
 {
     const prototypeArguments = getArgumentPrototype(cFunctionPrototype);
