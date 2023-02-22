@@ -69,15 +69,12 @@ __declspec(dllexport) char* hello_func (char* name)
 ```javascript
 const {loadFunctions} = require("@thimpat/c-node");
 
-// Import c function "hello_func()" from dll
+// Import c function "hello_func()" from c library
 const {hello_func} = loadFunctions("dll.c", {
     hello_func: {
         // hello_func prototype from dll.c without names (only types)
         prototype: "char* hello_func (char*)",
     }
-}, {
-    // Optional: Directory from which the shared function will be executed
-    outputDir: "demo/"
 });
 
 // Invoke dll function
@@ -214,9 +211,47 @@ runFile("examples/ex1.c", {outputDir: "demo/"});
 
 <br/>
 
+---
+
+## loadBinaryFunctions
+
+Load functions from a .dll
+
+<br/>
+
+#### Usage
+
+```javascript
+loadBinaryFunctions("<your-lib>.dll", {
+    [funcName]: {
+        prototype: "...",
+    },
+})
+```
+
+<br/>
+
+#### Examples
+
+###### example.js ↴
+```javascript
+const {hello_func} = loadBinaryFunctions("dll.dll", {
+    hello_func: {
+        prototype: "char* hello_func (char*)",
+    }
+});
+
+const res = hello_func("My name is awesome");
+console.log({lid: "NC6452"}, res);
+```
+
+<br/>
+
+---
+
 ## invokeFunction
 
-> Call a function from a .dll
+Call a function from a c source code
 
 <br/>
 
@@ -243,6 +278,26 @@ invokeFunction(functionCallString, filePath, {outputDir});
 const {invokeFunction} = require("@thimpat/c-node");
 
 const result = invokeFunction("hello_func()", "examples/dll.c", {outputDir: "demo/"});
+console.log(result);
+```
+
+<br/>
+
+---
+
+## invokeBinaryFunction
+
+Call a function from a .dll
+
+<br/>
+
+#### Examples
+
+###### example.js ↴
+```javascript
+const {invokeFunction} = require("@thimpat/c-node");
+
+const result = invokeBinaryFunction("hello_func()", "examples/dll.dll", {outputDir: "demo/"});
 console.log(result);
 ```
 
