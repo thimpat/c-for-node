@@ -41,7 +41,8 @@ const PROCESS_ERROR_CODE = {
 }
 
 const CONSTANTS = {
-    prefixTemp: `cnode-temp-`
+    prefixTemp  : `${APP_NAME}-temp-`,
+    prefixSharer: `${APP_NAME}-sharer`
 };
 
 // --------------------------------------------------------------------
@@ -393,6 +394,7 @@ const getInfo = function (filePath, {output = "", outputDir = "", binType = BIN_
  * @param execArgs
  * @param defs
  * @param output
+ * @param cwd
  * @param outputDir
  * @returns {*}
  */
@@ -474,26 +476,41 @@ const runLive = function (filePath, {execArgs = [], defs = [], outputDir = ""} =
 const runString = function (str, {execArgs = [], defs = [], cwd = "./"} = {})
 {
     const fileName = CONSTANTS.prefixTemp + crypto.randomInt(0, 9999999) + ".c";
-    const filePath = joinPath(cwd, fileName);
-    writeFileSync(filePath, str, {encoding: "utf-8"});
+    let filePath;
 
-    // const result = runLive(filePath, {defs, outputDir});
-    const {success, data, stderr, stdout, status, message, commandLine, compiledPath} = runFile(filePath, {
-        defs,
-        cwd
-    });
+    try
+    {
+        filePath = joinPath(cwd, fileName);
+        writeFileSync(filePath, str, {encoding: "utf-8"});
 
-    existsSync(filePath) && unlinkSync(filePath);
-    existsSync(compiledPath) && unlinkSync(compiledPath);
+        // const result = runLive(filePath, {defs, outputDir});
+        const {success, data, stderr, stdout, status, message, commandLine, compiledPath} = runFile(filePath, {
+            defs,
+            cwd
+        });
 
-    return {success, data, stderr, stdout, status, message, commandLine, compiledPath};
+        existsSync(compiledPath) && unlinkSync(compiledPath);
+
+        return {success, data, stderr, stdout, status, message, commandLine, compiledPath};
+
+    }
+    catch (e)
+    {
+        console.error({lid: "NC5489"}, e.message);
+    }
+    finally
+    {
+        filePath && existsSync(filePath) && unlinkSync(filePath);
+    }
+
+    return {success: false};
 }
 
 /**
  * Invoke a function from a shared library file (.dll)
  * @param {string} cFunctionInvokation
+ * @param libraryPath
  * @param {FilePath} dll Path to shared library
- * @param {string} outputDir Directory to use to run the external C function
  * @param {string} cFunctionPrototype Function prototype
  * @returns {{success: boolean}|{result: *, stdout: *, success: *, compiledPath: *, stderr: *, message: *, commandLine:
  *     *, status: *}|null}
@@ -517,7 +534,7 @@ const invokeBinaryFunction = function (cFunctionInvokation, libraryPath, {cFunct
         }
 
         const tmpDir = createAppTempDir({appName: APP_NAME});
-        const fileSharingPath = joinPath(tmpDir, `${APP_NAME}-sharer-${crypto.randomInt(1000000, 99999999)}.txt`);
+        const fileSharingPath = joinPath(tmpDir, `${CONSTANTS.prefixSharer}-${crypto.randomInt(1000000, 99999999)}.txt`);
         const str = loadTemplate("winmain.c", {
             shebang: "#!/usr/local/bin/tcc -run",
             cFunctionInvokation,
